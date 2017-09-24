@@ -18,28 +18,30 @@ package com.vaadin.osgi.themes;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.http.HttpService;
 
-import com.vaadin.osgi.resources.OsgiVaadinResources;
 import com.vaadin.osgi.resources.VaadinResourceService;
 
 @Component(immediate = true)
 public class ValoThemeContribution {
 
-    private HttpService httpService;
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	VaadinResourceService resourcesService;
 
-    @Activate
-    void startup() throws Exception {
-        VaadinResourceService service = OsgiVaadinResources.getService();
-        service.publishTheme("valo", httpService);
-    }
+	private HttpService httpService;
 
-    @Reference
-    void setHttpService(HttpService httpService) {
-        this.httpService = httpService;
-    }
+	@Activate
+	void startup() throws Exception {
+		resourcesService.publishTheme("valo", httpService);
+	}
 
-    void unsetHttpService(HttpService httpService) {
-        this.httpService = null;
-    }
+	@Reference
+	void setHttpService(HttpService httpService) {
+		this.httpService = httpService;
+	}
+
+	void unsetHttpService(HttpService httpService) {
+		this.httpService = null;
+	}
 }

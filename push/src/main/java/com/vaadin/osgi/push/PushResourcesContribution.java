@@ -19,33 +19,34 @@ import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.http.HttpService;
 
-import com.vaadin.osgi.resources.OsgiVaadinResources;
 import com.vaadin.osgi.resources.VaadinResourceService;
 
 @Component(immediate = true)
 public class PushResourcesContribution {
-    private HttpService httpService;
+	private HttpService httpService;
 
-    private static final String[] RESOURCES = { "vaadinPush.js",
-            "vaadinPush.js.gz", "vaadinPush.debug.js",
-            "vaadinPush.debug.js.gz" };
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	VaadinResourceService resourceService;
 
-    @Activate
-    void startup(ComponentContext context) throws Exception {
-        VaadinResourceService service = OsgiVaadinResources.getService();
-        for (String resourceName : RESOURCES) {
-            service.publishResource(resourceName, httpService);
-        }
-    }
+	private static final String[] RESOURCES = { "vaadinPush.js", "vaadinPush.js.gz", "vaadinPush.debug.js",
+			"vaadinPush.debug.js.gz" };
 
-    @Reference
-    void setHttpService(HttpService httpService) {
-        this.httpService = httpService;
-    }
+	@Activate
+	void startup(ComponentContext context) throws Exception {
+		for (String resourceName : RESOURCES) {
+			resourceService.publishResource(resourceName, httpService);
+		}
+	}
 
-    void unsetHttpService(HttpService httpService) {
-        this.httpService = null;
-    }
+	@Reference
+	void setHttpService(HttpService httpService) {
+		this.httpService = httpService;
+	}
+
+	void unsetHttpService(HttpService httpService) {
+		this.httpService = null;
+	}
 }

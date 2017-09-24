@@ -18,11 +18,10 @@ package com.vaadin.server.osgi;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.http.HttpService;
 import org.osgi.service.http.NamespaceException;
 
-import com.vaadin.osgi.resources.OsgiVaadinResources;
-import com.vaadin.osgi.resources.OsgiVaadinResources.ResourceBundleInactiveException;
 import com.vaadin.osgi.resources.VaadinResourceService;
 
 /**
@@ -34,24 +33,25 @@ import com.vaadin.osgi.resources.VaadinResourceService;
  */
 @Component(immediate = true)
 public class BootstrapContribution {
-    private static final String[] RESOURCES = { "vaadinBootstrap.js",
-            "vaadinBootstrap.js.gz" };
-    private HttpService httpService;
+	private static final String[] RESOURCES = { "vaadinBootstrap.js", "vaadinBootstrap.js.gz" };
+	private HttpService httpService;
 
-    @Activate
-    void startup() throws NamespaceException, ResourceBundleInactiveException {
-        VaadinResourceService service = OsgiVaadinResources.getService();
-        for (String resourceName : RESOURCES) {
-            service.publishResource(resourceName, httpService);
-        }
-    }
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	private VaadinResourceService resourceService;
 
-    @Reference
-    void setHttpService(HttpService service) {
-        httpService = service;
-    }
+	@Activate
+	void startup() throws NamespaceException {
+		for (String resourceName : RESOURCES) {
+			resourceService.publishResource(resourceName, httpService);
+		}
+	}
 
-    void unsetHttpService(HttpService service) {
-        httpService = null;
-    }
+	@Reference
+	void setHttpService(HttpService service) {
+		httpService = service;
+	}
+
+	void unsetHttpService(HttpService service) {
+		httpService = null;
+	}
 }

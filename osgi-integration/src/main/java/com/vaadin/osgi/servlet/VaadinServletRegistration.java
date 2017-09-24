@@ -33,8 +33,6 @@ import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.service.http.whiteboard.HttpWhiteboardConstants;
 import org.osgi.service.log.LogService;
 
-import com.vaadin.osgi.resources.OsgiVaadinResources;
-import com.vaadin.osgi.resources.OsgiVaadinResources.ResourceBundleInactiveException;
 import com.vaadin.osgi.resources.VaadinResourceService;
 import com.vaadin.server.Constants;
 import com.vaadin.server.VaadinServlet;
@@ -50,109 +48,101 @@ import com.vaadin.server.VaadinServlet;
  */
 @Component
 public class VaadinServletRegistration {
-    private final Map<ServiceReference<VaadinServlet>, ServiceRegistration<Servlet>> registeredServlets = Collections
-            .synchronizedMap(new LinkedHashMap<>());
+	private final Map<ServiceReference<VaadinServlet>, ServiceRegistration<Servlet>> registeredServlets = Collections
+			.synchronizedMap(new LinkedHashMap<>());
 
-    private static final String MISSING_ANNOTATION_MESSAGE_FORMAT = "The property '%s' must be set in a '%s' without the '%s' annotation!";
-    private static final String URL_PATTERNS_NOT_SET_MESSAGE_FORMAT = "The property '%s' must be set when the 'urlPatterns' attribute is not set!";
+	private static final String MISSING_ANNOTATION_MESSAGE_FORMAT = "The property '%s' must be set in a '%s' without the '%s' annotation!";
+	private static final String URL_PATTERNS_NOT_SET_MESSAGE_FORMAT = "The property '%s' must be set when the 'urlPatterns' attribute is not set!";
 
-    private static final String SERVLET_PATTERN = HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN;
+	private static final String SERVLET_PATTERN = HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN;
 
-    private static final String VAADIN_RESOURCES_PARAM = HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_INIT_PARAM_PREFIX
-            + Constants.PARAMETER_VAADIN_RESOURCES;
+	private static final String VAADIN_RESOURCES_PARAM = HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_INIT_PARAM_PREFIX
+			+ Constants.PARAMETER_VAADIN_RESOURCES;
 
-    private LogService logService;
+	private LogService logService;
 
-    @Reference(cardinality = ReferenceCardinality.MULTIPLE, service = VaadinServlet.class, policy = ReferencePolicy.DYNAMIC)
-    void bindVaadinServlet(VaadinServlet servlet, ServiceReference<VaadinServlet> reference)
-            throws ResourceBundleInactiveException {
-        log(LogService.LOG_WARNING, "VaadinServlet Registration");
+	@Reference(cardinality=ReferenceCardinality.MANDATORY)
+	VaadinResourceService resourceService;
 
-        Hashtable<String, Object> properties = getProperties(reference);
+	@Reference(cardinality = ReferenceCardinality.MULTIPLE, service = VaadinServlet.class, policy = ReferencePolicy.DYNAMIC)
+	void bindVaadinServlet(VaadinServlet servlet, ServiceReference<VaadinServlet> reference) {
+		log(LogService.LOG_WARNING, "VaadinServlet Registration");
 
-        WebServlet annotation = servlet.getClass()
-                .getAnnotation(WebServlet.class);
+		Hashtable<String, Object> properties = getProperties(reference);
 
-        if (!validateSettings(annotation, properties)) {
-            return;
-        }
+		WebServlet annotation = servlet.getClass().getAnnotation(WebServlet.class);
 
-        properties.put(VAADIN_RESOURCES_PARAM, getResourcePath());
-        if (annotation != null) {
-            properties.put(
-                    HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_ASYNC_SUPPORTED,
-                    Boolean.toString(annotation.asyncSupported()));
-        }
+		if (!validateSettings(annotation, properties)) {
+			return;
+		}
 
-        // We register the Http Whiteboard servlet using the context of
-        // the bundle which registered the Vaadin Servlet, not our own
-        BundleContext bundleContext = reference.getBundle().getBundleContext();
-        ServiceRegistration<Servlet> servletRegistration = bundleContext
-                .registerService(Servlet.class, servlet, properties);
+		properties.put(VAADIN_RESOURCES_PARAM, getResourcePath());
+		if (annotation != null) {
+			properties.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_ASYNC_SUPPORTED,
+					Boolean.toString(annotation.asyncSupported()));
+		}
 
-        registeredServlets.put(reference, servletRegistration);
-    }
+		// We register the Http Whiteboard servlet using the context of
+		// the bundle which registered the Vaadin Servlet, not our own
+		BundleContext bundleContext = reference.getBundle().getBundleContext();
+		ServiceRegistration<Servlet> servletRegistration = bundleContext.registerService(Servlet.class, servlet,
+				properties);
 
-    private boolean validateSettings(WebServlet annotation,
-            Hashtable<String, Object> properties) {
-        if (!properties.containsKey(SERVLET_PATTERN)) {
-            if (annotation == null) {
-                log(LogService.LOG_ERROR,
-                        String.format(MISSING_ANNOTATION_MESSAGE_FORMAT,
-                                SERVLET_PATTERN,
-                                VaadinServlet.class.getSimpleName(),
-                                WebServlet.class.getName()));
-                return false;
-            } else if (annotation.urlPatterns().length == 0) {
-                log(LogService.LOG_ERROR, String.format(
-                        URL_PATTERNS_NOT_SET_MESSAGE_FORMAT, SERVLET_PATTERN));
-                return false;
-            }
-        }
-        return true;
-    }
+		registeredServlets.put(reference, servletRegistration);
+	}
 
-    private String getResourcePath() throws ResourceBundleInactiveException {
-        VaadinResourceService service = OsgiVaadinResources.getService();
-        return String.format("/%s", service.getResourcePathPrefix());
-    }
+	private boolean validateSettings(WebServlet annotation, Hashtable<String, Object> properties) {
+		if (!properties.containsKey(SERVLET_PATTERN)) {
+			if (annotation == null) {
+				log(LogService.LOG_ERROR, String.format(MISSING_ANNOTATION_MESSAGE_FORMAT, SERVLET_PATTERN,
+						VaadinServlet.class.getSimpleName(), WebServlet.class.getName()));
+				return false;
+			} else if (annotation.urlPatterns().length == 0) {
+				log(LogService.LOG_ERROR, String.format(URL_PATTERNS_NOT_SET_MESSAGE_FORMAT, SERVLET_PATTERN));
+				return false;
+			}
+		}
+		return true;
+	}
 
-    private void log(int level, String message) {
-        if (logService != null) {
-            logService.log(level, message);
-        }
-    }
+	private String getResourcePath() {
+		return String.format("/%s", resourceService.getResourcePathPrefix());
+	}
 
-    void unbindVaadinServlet(ServiceReference<VaadinServlet> reference) {
-        ServiceRegistration<?> servletRegistration = registeredServlets
-                .remove(reference);
-        if (servletRegistration != null) {
-            try {
-                servletRegistration.unregister();
-            } catch (IllegalStateException ise) {
-                // This service may have already been unregistered
-                // automatically by the OSGi framework if the
-                // application bundle is being stopped. This is
-                // obviously not a problem for us.
-            }
-        }
-    }
+	private void log(int level, String message) {
+		if (logService != null) {
+			logService.log(level, message);
+		}
+	}
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    void setLogService(LogService logService) {
-        this.logService = logService;
-    }
+	void unbindVaadinServlet(ServiceReference<VaadinServlet> reference) {
+		ServiceRegistration<?> servletRegistration = registeredServlets.remove(reference);
+		if (servletRegistration != null) {
+			try {
+				servletRegistration.unregister();
+			} catch (IllegalStateException ise) {
+				// This service may have already been unregistered
+				// automatically by the OSGi framework if the
+				// application bundle is being stopped. This is
+				// obviously not a problem for us.
+			}
+		}
+	}
 
-    void unsetLogService(LogService logService) {
-        this.logService = null;
-    }
+	@Reference(cardinality = ReferenceCardinality.OPTIONAL)
+	void setLogService(LogService logService) {
+		this.logService = logService;
+	}
 
-    private Hashtable<String, Object> getProperties(
-            ServiceReference<VaadinServlet> reference) {
-        Hashtable<String, Object> properties = new Hashtable<>();
-        for (String key : reference.getPropertyKeys()) {
-            properties.put(key, reference.getProperty(key));
-        }
-        return properties;
-    }
+	void unsetLogService(LogService logService) {
+		this.logService = null;
+	}
+
+	private Hashtable<String, Object> getProperties(ServiceReference<VaadinServlet> reference) {
+		Hashtable<String, Object> properties = new Hashtable<>();
+		for (String key : reference.getPropertyKeys()) {
+			properties.put(key, reference.getProperty(key));
+		}
+		return properties;
+	}
 }

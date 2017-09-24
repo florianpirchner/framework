@@ -15,6 +15,7 @@
  */
 package com.vaadin.osgi.resources.impl;
 
+import org.osgi.service.component.annotations.Component;
 import org.osgi.service.http.HttpService;
 import org.osgi.service.http.NamespaceException;
 
@@ -28,6 +29,7 @@ import com.vaadin.osgi.resources.VaadinResourceService;
  *
  * @since 8.1
  */
+@Component
 public class VaadinResourceServiceImpl implements VaadinResourceService {
     private static final String NAMESPACE_PREFIX = "vaadin-%s";
 

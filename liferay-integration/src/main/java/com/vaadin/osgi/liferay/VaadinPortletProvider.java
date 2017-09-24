@@ -26,7 +26,6 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.log.LogService;
 import org.osgi.util.tracker.ServiceTracker;
 
-import com.vaadin.osgi.resources.OsgiVaadinResources;
 import com.vaadin.osgi.resources.VaadinResourceService;
 import com.vaadin.ui.UI;
 
@@ -43,37 +42,38 @@ import com.vaadin.ui.UI;
 @Component
 public class VaadinPortletProvider {
 
-    private ServiceTracker<UI, ServiceObjects<UI>> serviceTracker;
-    private PortletUIServiceTrackerCustomizer portletUIServiceTrackerCustomizer;
-    private LogService logService;
+	private ServiceTracker<UI, ServiceObjects<UI>> serviceTracker;
+	private PortletUIServiceTrackerCustomizer portletUIServiceTrackerCustomizer;
+	private LogService logService;
 
-    @Activate
-    void activate(ComponentContext componentContext) throws Exception {
-        BundleContext bundleContext = componentContext.getBundleContext();
-        VaadinResourceService service = OsgiVaadinResources.getService();
+	@Reference(cardinality = ReferenceCardinality.MANDATORY)
+	VaadinResourceService resourcesService;
 
-        portletUIServiceTrackerCustomizer = new PortletUIServiceTrackerCustomizer(
-                service, logService);
-        serviceTracker = new ServiceTracker<UI, ServiceObjects<UI>>(
-                bundleContext, UI.class, portletUIServiceTrackerCustomizer);
-        serviceTracker.open();
-    }
+	@Activate
+	void activate(ComponentContext componentContext) throws Exception {
+		BundleContext bundleContext = componentContext.getBundleContext();
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    void setLogService(LogService logService) {
-        this.logService = logService;
-    }
+		portletUIServiceTrackerCustomizer = new PortletUIServiceTrackerCustomizer(resourcesService, logService);
+		serviceTracker = new ServiceTracker<UI, ServiceObjects<UI>>(bundleContext, UI.class,
+				portletUIServiceTrackerCustomizer);
+		serviceTracker.open();
+	}
 
-    void unsetLogService(LogService logService) {
-        this.logService = null;
-    }
+	@Reference(cardinality = ReferenceCardinality.OPTIONAL)
+	void setLogService(LogService logService) {
+		this.logService = logService;
+	}
 
-    @Deactivate
-    void deactivate() {
-        if (serviceTracker != null) {
-            serviceTracker.close();
-            portletUIServiceTrackerCustomizer.cleanPortletRegistrations();
-            portletUIServiceTrackerCustomizer = null;
-        }
-    }
+	void unsetLogService(LogService logService) {
+		this.logService = null;
+	}
+
+	@Deactivate
+	void deactivate() {
+		if (serviceTracker != null) {
+			serviceTracker.close();
+			portletUIServiceTrackerCustomizer.cleanPortletRegistrations();
+			portletUIServiceTrackerCustomizer = null;
+		}
+	}
 }

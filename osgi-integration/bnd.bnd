@@ -6,4 +6,7 @@ Bundle-License: http://www.apache.org/licenses/LICENSE-2.0
 Import-Package: com.vaadin.*;version='[${osgi.bundle.version},${osgi.bundle.version}]',\
     * 
 
-Export-Package: com.vaadin.osgi.servlet
+Export-Package: com.vaadin.osgi.servlet.api 
+
+Require-Capability: \
+	compile-only
